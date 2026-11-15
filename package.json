@@ -1,0 +1,18 @@
+{
+  "name": "orbital",
+  "version": "1.0.0",
+  "description": "ORBITAL - 3D rocket mission design game and Earth Information Jukebox (independent educational project)",
+  "main": "index.js",
+  "scripts": {
+    "setup": "node setup.mjs",
+    "start": "node server.mjs",
+    "test": "node test/run.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "three": "0.160.0"
+  }
+}

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live Arctic Ice Sheet</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#00bcd4;--btn:#00838f;--btn-hover:#006064">
+<div class="container">
+  <h1>Earth Information Jukebox</h1>
+  <p class="sub">Live Sonification of the Arctic: NASA POWER temperature (now vs 1981) &amp; EONET sea-ice events</p>
+  <canvas id="visualizer"></canvas>
+  <div id="narrative-box" class="narrative-box" aria-live="polite">Connecting to NASA POWER meteorological data and NASA EONET event data...</div>
+  <div class="btn-group">
+    <button onclick="sonifyArcticData(false)">Sonify Reference Temperature</button>
+    <button onclick="sonifyArcticData(true)">Sonify Latest Temperature &amp; Ice-Event Count</button>
+  </div>
+  <div id="status-msg" class="status">Connecting to the named NASA API…</div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('arctic'); strokeColor = '#00bcd4';
+
+// Fallback values are only used if NASA cannot be reached (and the status line says so).
+let historicalArcticTemp = -14.2, liveArcticTemp = -5.8, iceEventsCount = 12, isLive = false;
+const arcticValueSource = { current: 'offline sample', baseline: 'offline sample', iceEvents: 'offline sample' };
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+
+async function fetchNASAArcticTelemetry() {
+  try {
+    const now = powerWindow(), old = powerWindow('1981');
+    const [recent, base, ice] = await Promise.allSettled([
+      getJSON(powerUrl('T2M', 15.0, 78.0, now)), getJSON(powerUrl('T2M', 15.0, 78.0, old)),
+      getJSON('https://eonet.gsfc.nasa.gov/api/v3/categories/seaLakeIce?status=open')]);
+    let got = 0;
+    if (recent.status === 'fulfilled') { const v = validValues(recent.value.properties.parameter.T2M); if (v.length) { liveArcticTemp = Math.round(v[v.length - 1] * 10) / 10; arcticValueSource.current = 'NASA POWER'; got++; } }
+    if (base.status === 'fulfilled') { const v = validValues(base.value.properties.parameter.T2M); if (v.length) { historicalArcticTemp = Math.round(mean(v) * 10) / 10; arcticValueSource.baseline = 'NASA POWER'; got++; } }
+    if (ice.status === 'fulfilled' && ice.value.events) { iceEventsCount = ice.value.events.length; arcticValueSource.iceEvents = 'NASA EONET'; got++; }
+    if (!got) throw new Error('no data');
+    isLive = got === 3;
+    setStatus((isLive ? 'NASA POWER + EONET SYNCED: ' : 'PARTIAL DATA (some values are labelled samples): ') + 'Arctic 2 m air temperature ' + liveArcticTemp + '°C vs same-week 1981 value ' + historicalArcticTemp + '°C | ' + iceEventsCount + ' open sea/lake-ice events');
+    setNarrative('NASA POWER 2 m air temperature at 78°N, 15°E: latest value ' + liveArcticTemp + '°C (' + arcticValueSource.current + '); same 7-day window in 1981: ' + historicalArcticTemp + '°C (' + arcticValueSource.baseline + '). Separate open sea/lake-ice event count: ' + iceEventsCount + ' (' + arcticValueSource.iceEvents + '); this is not the NSIDC Sea Ice Index. Any value labelled offline sample is illustrative, not an observation.');
+  } catch (e) {
+    setStatus('OFFLINE FALLBACK MODE: sample values in use, NOT live NASA data.');
+    setNarrative('NASA could not be reached, so the Arctic values shown are samples, not live measurements.');
+  } finally { setLiveControlsReady(true); }
+}
+fetchNASAArcticTelemetry();
+
+function sonifyArcticData(isStressed) {
+  initAudio();
+  const thermalDelta = Math.abs(liveArcticTemp - historicalArcticTemp), stressedFreq = Math.round(650 + thermalDelta * 25);
+  if (isStressed) {
+    strokeColor = '#ff5252';
+    const text = 'Arctic 2 metre air temperature: ' + liveArcticTemp + ' degrees Celsius (' + arcticValueSource.current + '); difference from the 1981 same-week reference: ' + thermalDelta.toFixed(1) + ' degrees. Open sea and lake ice event count: ' + iceEventsCount + ' (' + arcticValueSource.iceEvents + '). Any offline sample is illustrative, not a NASA observation.';
+    setNarrative(text); speakText(text);
+    let t = audioCtx.currentTime; const pulses = Math.min(Math.max(iceEventsCount, 8), 18);
+    for (let i = 0; i < pulses; i++) { note('sawtooth', stressedFreq + i * 30, t, 0.15, 0.6); t += 0.18; }
+  } else {
+    strokeColor = '#00bcd4';
+    const f = Math.max(130, Math.min(600, Math.round(440 + historicalArcticTemp * 8))), text = '1981 same-week reference temperature: ' + historicalArcticTemp + ' degrees Celsius (' + arcticValueSource.baseline + '), mapped to ' + f + ' Hz for sonification. Frequency is a sound mapping, not a NASA variable.';
+    setNarrative(text); speakText(text);
+    note('sine', f, audioCtx.currentTime, 3.0, 0.8);
+  }
+}
+</script>
+</body>
+</html>

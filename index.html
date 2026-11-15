@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORBITAL — Earth &amp; Space Mission Experience</title>
+<meta name="description" content="Engineer rockets in 3D, fly them from the launchpad to space, and play Earth-science records on a holographic data jukebox. An independent educational project, not a NASA product.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="boot"><div><div class="ring"></div><div class="mono">LOADING 3D ENGINE…</div></div></div>
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><i></i>ORBITAL <small>EARTH &amp; SPACE MISSION EXPERIENCE · INDEPENDENT PROJECT</small></div>
+    <div class="spacer"></div>
+    <button class="btn sm" id="btnTour" title="A 60-second guided tour of the whole game">▶ Tour</button><button class="btn sm" id="btnHelp" title="Help Center: money, buying, flying, jukebox, glossary">? Help</button>
+    <div class="wallet" id="wallet" aria-label="Resources">
+      <div class="chip cr" id="chipCr" title="Credits are earned by completing missions and spent on rocket parts and launch fees."><span>Credits</span><b id="vCr">0</b></div>
+      <div class="chip gm" id="chipGm" title="Science Gems are earned from milestones and unlock Earth-science records."><span>Science Gems</span><b id="vGm">0</b></div>
+    </div>
+  </header>
+  <nav id="rail" aria-label="Sections"></nav>
+  <main>
+    <div id="coach" hidden></div>
+    <section class="view" id="v-home" aria-label="Start"></section>
+    <section class="view" id="v-control" aria-label="Mission Control"></section>
+    <section class="view fill" id="v-lab" aria-label="Rocket Engineering Lab">
+      <div class="lab">
+        <div class="stage"><canvas id="labCanvas" aria-label="3D view of your rocket. Drag to rotate, scroll to zoom."></canvas>
+          <div class="overlay-tl"><div class="panel" style="padding:8px 12px"><h2 style="margin:0 0 4px">Assembly bay</h2><div class="dim" style="font-size:12px">Drag to rotate · scroll to zoom</div><button class="btn sm" data-help="lab" style="margin-top:6px">? How buying works</button></div></div>
+          <div class="overlay-tr"><button class="btn sm" id="btnExplode" aria-pressed="false">Exploded view</button></div>
+          <div class="overlay-bl"><div class="row"><button class="btn go" id="btnToLaunch">Go to launchpad ▸</button></div></div>
+        </div>
+        <aside class="side" id="labSide"></aside>
+      </div>
+    </section>
+    <section class="view fill" id="v-flight" aria-label="Launch and Flight Simulator">
+      <div class="stage" style="position:absolute;inset:0">
+        <canvas id="flightCanvas" aria-label="Flight view"></canvas>
+        <div class="hud" id="hud"></div>
+        <div class="countdown" id="countdown" hidden></div>
+        <div class="flightbar" id="flightbar"></div>
+        <div class="hudtoggle" id="hudToggle" role="toolbar" aria-label="Show or hide flight panels"></div>
+      </div>
+    </section>
+    <section class="view" id="v-map" aria-label="Mission Map"></section>
+    <section class="view fill" id="v-juke" aria-label="Earth Information Jukebox">
+      <div class="juke">
+        <div class="jmain">
+          <div class="stage jstage"><canvas id="jukeCanvas" aria-label="3D jukebox. Click a record sleeve on the rack to select it."></canvas>
+            <div class="overlay-tl" id="jukeIntro"><div class="jintro"><b>Earth Information Jukebox</b><span class="dim" id="jukeStatus" aria-live="polite">Pick a record from the rack.</span><button class="btn sm" data-help="juke" aria-label="How the jukebox works" title="How the jukebox works">?</button></div></div>
+            <div class="holo-readout" id="holoReadout" hidden aria-live="off"></div>
+          </div>
+          <div class="deck" id="deck"></div>
+        </div>
+        <aside class="side" id="jukeSide"></aside>
+      </div>
+    </section>
+    <section class="view" id="v-science" aria-label="Science Discovery Lab"></section>
+    <section class="view" id="v-reports" aria-label="Mission Reports and Progress"></section>
+  </main>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="panel" id="modalBody"></div></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+// Resolve Three.js: prefer the local copy in /vendor (offline-safe), otherwise fall back to a pinned CDN build.
+(function () {
+  var local = false;
+  try { var x = new XMLHttpRequest(); x.open('HEAD', 'vendor/three.module.js', false); x.send(); local = x.status === 200; } catch (e) {}
+  var base = local ? './vendor/' : 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
+  var map = local ? { 'three': './vendor/three.module.js', 'three/addons/': './vendor/addons/' }
+                  : { 'three': base + 'build/three.module.js', 'three/addons/': base + 'examples/jsm/' };
+  var s = document.createElement('script'); s.type = 'importmap'; s.textContent = JSON.stringify({ imports: map }); document.head.appendChild(s);
+  window.__threeSource = local ? 'local vendor folder' : 'jsDelivr CDN';
+})();
+</script>
+<script type="module" src="src/bootstrap.js"></script>
+</body>
+</html>

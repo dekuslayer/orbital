@@ -1,0 +1,12 @@
+import { launch, ok } from './lib.mjs';
+const [w, h] = [+process.argv[2] || 1821, +process.argv[3] || 840];
+const { b, p, logs } = await launch(w, h);
+await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForFunction(() => document.getElementById('boot').classList.contains('hide'), null, { timeout: 60000 });
+await p.click('[data-home="launch"]'); await p.waitForTimeout(800);
+await p.click('#btnLaunchNow'); await p.evaluate(() => { window.__ORBITAL.S.fc.cd = 0.05; });
+await p.waitForFunction(() => window.__ORBITAL.S.fc && window.__ORBITAL.S.fc.state === 'flying', null, { timeout: 60000 });
+await p.click('#bView'); await p.waitForTimeout(6000);
+await p.screenshot({ path: `/tmp/orbital_v2d_${w}.png`, timeout: 120000 });
+await p.click('[data-hud="all"]'); await p.waitForTimeout(2500);
+await p.screenshot({ path: `/tmp/orbital_v2dh_${w}.png`, timeout: 120000 });
+console.log(logs.join('\n') || 'no console errors'); await b.close();

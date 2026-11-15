@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live Fever Chart</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#ff5252;--btn:#d32f2f;--btn-hover:#b71c1c">
+<div class="container">
+  <h1>Earth Information Jukebox</h1>
+  <p class="sub">Live Sonification of 12-Month 2 m Air-Temperature Anomaly at One Grid Point (NASA POWER, vs 1991–2020 average)</p>
+  <canvas id="visualizer"></canvas>
+  <div id="narrative-box" class="narrative-box" aria-live="polite">Connecting to NASA POWER monthly 2 m air-temperature data...</div>
+  <div class="btn-group">
+    <button onclick="sonifyFeverChart(false)">Sonify 1991–2020 Baseline</button>
+    <button onclick="sonifyFeverChart(true)">Sonify 12-Month Anomaly Sequence</button>
+  </div>
+  <div id="status-msg" class="status">Connecting to the named NASA API…</div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('fever'); strokeColor = '#ff5252';
+
+// Sample values (°C anomaly), used only if NASA is unreachable.
+let anomalyValues = [1.12, 1.15, 1.18, 1.21, 1.25, 1.22, 1.28, 1.30, 1.32, 1.35, 1.38, 1.40], anomalyLabel = 'offline illustrative sample values', feverDataIsLive = false;
+const r2 = v => Math.round(v * 100) / 100;
+
+async function fetchClimateAnomalyData() {
+  try {
+    const y = new Date().getUTCFullYear();
+    const url = (a, b) => 'https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M&community=RE&longitude=0.0&latitude=0.0&start=' + a + '&end=' + b + '&format=JSON';
+    const [recent, clim] = await Promise.all([getJSON(url(y - 2, y)), getJSON(url(1991, 2020))]);
+    const monthly = o => Object.entries(o || {}).filter(([k, v]) => /^\d{6}$/.test(k) && +k.slice(4) >= 1 && +k.slice(4) <= 12 && Number.isFinite(v) && v > -900).sort(([a], [b]) => a.localeCompare(b));   // calendar months only; exclude POWER's YYYY13 annual mean entry
+    // 1991–2020 average for each calendar month
+    const sum = Array(12).fill(0), cnt = Array(12).fill(0);
+    monthly(clim.properties.parameter.T2M).forEach(([k, v]) => { const m = +k.slice(4) - 1; sum[m] += v; cnt[m]++; });
+    const today = new Date(), lastCompleted = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0));
+    const cutoff = String(lastCompleted.getUTCFullYear()) + String(lastCompleted.getUTCMonth() + 1).padStart(2, '0');
+    const last12 = monthly(recent.properties.parameter.T2M).filter(([k]) => k <= cutoff).slice(-12);
+    if (last12.length < 12 || cnt.some(c => !c)) throw new Error('incomplete');
+    anomalyValues = last12.map(([k, v]) => r2(v - sum[+k.slice(4) - 1] / cnt[+k.slice(4) - 1]));
+    anomalyLabel = last12[0][0] + ' to ' + last12[11][0]; feverDataIsLive = true;
+    const last = anomalyValues[11];
+    setStatus('NASA POWER SYNCED: ' + anomalyLabel + ' | latest anomaly ' + (last > 0 ? '+' : '') + last + '°C (single point 0°N 0°E, not the global mean)');
+    setNarrative('12 complete monthly anomalies loaded through ' + anomalyLabel.split(' to ')[1] + ': each month minus the 1991–2020 average for that calendar month. This is one grid point, not the global GISTEMP value used by the game record. Ready.');
+  } catch (e) { setStatus('OFFLINE FALLBACK MODE: sample values in use, NOT live NASA data.'); setNarrative('NASA POWER could not be reached or returned a complete series. The displayed anomaly samples are illustrative, not live measurements.'); } finally { setLiveControlsReady(true); }
+}
+fetchClimateAnomalyData();
+
+const feverFreq = v => Math.max(150, Math.round(440 + v * 90));   // 0 anomaly = 440 Hz; warmer = higher
+function sonifyFeverChart(isSequence) {
+  initAudio();
+  if (isSequence) {
+    strokeColor = '#ff1744';
+    const text = feverDataIsLive ? ('Sonifying 12 NASA POWER monthly 2 m air-temperature anomalies at one grid point, 0 degrees north and 0 degrees east (' + anomalyLabel + '). This is not the global GISTEMP record.') : ('Sonifying 12 illustrative sample anomalies (' + anomalyLabel + '). These are not live NASA measurements or global GISTEMP observations.');
+    setNarrative(text); speakText(text);
+    let t = audioCtx.currentTime;
+    anomalyValues.forEach(v => { note('sawtooth', feverFreq(v), t, 0.22, 0.55); t += 0.25; });
+  } else {
+    strokeColor = '#ff5252';
+    const text = 'Baseline: the 440 Hz reference tone that stands for zero anomaly, the 1991 to 2020 average.';
+    setNarrative(text); speakText(text);
+    note('sine', 440, audioCtx.currentTime, 3.0, 0.7);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live Earth in Motion</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#ab47bc;--btn:#7b1fa2;--btn-hover:#4a148c">
+<div class="container">
+  <h1>Earth Information Jukebox</h1>
+  <p class="sub">Live Sonification of NASA EONET Earth Events</p>
+  <canvas id="visualizer"></canvas>
+  <div id="narrative-box" class="narrative-box" aria-live="polite">Initializing NASA API connection...</div>
+  <div class="btn-group">
+    <button onclick="sonifyLiveEarthData(false)">Sonify Event-Count Reference Tone</button>
+    <button onclick="sonifyLiveEarthData(true)">Sonify Open Natural Events (Time-Lapse)</button>
+  </div>
+  <div id="status-msg" class="status">Connecting to the named NASA API…</div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('earth'); strokeColor = '#ab47bc';
+
+let liveEventsCount = 25, latestEventTitle = 'Illustrative offline sample', earthDataIsLive = false;
+
+async function fetchNASAEarthData() {
+  try {
+    const data = await getJSON('https://eonet.gsfc.nasa.gov/api/v3/events?limit=20&status=open');
+    if (data && Array.isArray(data.events)) {
+      liveEventsCount = data.events.length; earthDataIsLive = true;
+      latestEventTitle = data.events.length ? ((data.events[0] && data.events[0].title) || 'Untitled EONET event') : 'No open natural event returned';
+      setStatus('LIVE API CONNECTED: ' + liveEventsCount + ' Active Events | Latest: ' + latestEventTitle);
+      setNarrative('NASA EONET loaded ' + liveEventsCount + ' open natural-event records. This is an event catalogue count, not a physical measurement of an Earth-system variable.');
+    }
+  } catch (e) { setStatus('OFFLINE FALLBACK MODE: sample values in use, NOT live NASA data.'); setNarrative('NASA EONET could not be reached. The displayed event count is an illustrative sample, not a live count.'); } finally { setLiveControlsReady(true); }
+}
+fetchNASAEarthData();
+
+function sonifyLiveEarthData(isTimeLapse) {
+  initAudio();
+  const dynamicFreq = 250 + liveEventsCount * 15;
+  if (isTimeLapse) {
+    strokeColor = '#ce93d8';
+    const text = earthDataIsLive ? ('Sonifying ' + liveEventsCount + ' open NASA EONET event records. Latest event: ' + latestEventTitle + '.') : ('Illustrative offline sample: sonifying ' + liveEventsCount + ' sample event records. These are not live NASA observations.');
+    setNarrative(text); speakText(text);
+    let t = audioCtx.currentTime;
+    for (let i = 0; i < liveEventsCount; i++) { note(i % 2 === 0 ? 'sine' : 'triangle', dynamicFreq + i * 20, t, 0.14, 0.6); t += 0.18; }
+  } else {
+    strokeColor = '#ab47bc';
+    const text = earthDataIsLive ? ('Reference tone: ' + dynamicFreq + ' Hz mapped from ' + liveEventsCount + ' NASA EONET event records; frequency is a sound mapping, not a physical measurement.') : ('Illustrative offline reference tone: ' + dynamicFreq + ' Hz mapped from ' + liveEventsCount + ' sample event records; these are not live NASA observations.');
+    setNarrative(text); speakText(text);
+    note('sine', dynamicFreq, audioCtx.currentTime, 3.0, 0.7);
+  }
+}
+</script>
+</body>
+</html>

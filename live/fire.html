@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live Fire Frequency</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#ff6d00;--btn:#d84315;--btn-hover:#bf360c">
+<div class="container">
+  <h1>Earth Information Jukebox</h1>
+  <p class="sub">Live Sonification of NASA EONET Wildfire Events</p>
+  <canvas id="visualizer"></canvas>
+  <div id="narrative-box" class="narrative-box" aria-live="polite">Connecting to NASA Wildfire API...</div>
+  <div class="btn-group">
+    <button onclick="sonifyLiveFireData(false)">Play Fixed Reference Tone (not a measurement)</button>
+    <button onclick="sonifyLiveFireData(true)">Sonify Open NASA EONET Wildfire Events</button>
+  </div>
+  <div id="status-msg" class="status">Connecting to the named NASA API…</div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('fire'); strokeColor = '#ff6d00';
+
+let activeWildfiresCount = 15, latestWildfireTitle = 'Illustrative offline sample', fireDataIsLive = false;
+
+async function fetchNASAWildfireData() {
+  try {
+    const data = await getJSON('https://eonet.gsfc.nasa.gov/api/v3/categories/wildfires?status=open');
+    if (data && Array.isArray(data.events)) {
+      activeWildfiresCount = data.events.length;
+      fireDataIsLive = true;
+      latestWildfireTitle = data.events.length ? ((data.events[0] && data.events[0].title) || 'Untitled EONET event') : 'No open wildfire event returned';
+      setStatus('NASA EONET CONNECTED: ' + activeWildfiresCount + ' open wildfire events | Latest: ' + latestWildfireTitle);
+      setNarrative('Loaded ' + activeWildfiresCount + ' open wildfire event records from NASA EONET. These are event counts, not FIRMS satellite fire-pixel detections. Ready for sonification.');
+    } else throw new Error('EONET response did not contain an events array');
+  } catch (e) {
+    setStatus('OFFLINE FALLBACK MODE: sample values in use, NOT live NASA data.');
+    setNarrative('NASA EONET could not be reached. The displayed sample wildfire count is illustrative and is not a live observation.');
+  } finally { setLiveControlsReady(true); }
+}
+fetchNASAWildfireData();
+
+function sonifyLiveFireData(isBurst) {
+  initAudio();
+  const dynamicFreq = 900 + activeWildfiresCount * 15;
+  if (isBurst) {
+    strokeColor = '#ff6d00';
+    const text = fireDataIsLive ? ('Open NASA EONET wildfire events: sonifying ' + activeWildfiresCount + ' event records. Latest event: ' + latestWildfireTitle + '.') : ('Illustrative offline sample: sonifying ' + activeWildfiresCount + ' sample event records. These are not live NASA observations.');
+    setNarrative(text); speakText(text);
+    let t = audioCtx.currentTime;
+    for (let i = 0; i < Math.min(activeWildfiresCount, 20); i++) { note('sawtooth', dynamicFreq + i * 35 + Math.random() * 50, t, 0.15, 0.7); t += 0.09; }
+  } else {
+    strokeColor = '#03dac6';
+    const text = 'Fixed 180 Hz reference tone. This is a sound-design reference, not a measured forest baseline.';
+    setNarrative(text); speakText(text);
+    note('sine', 180, audioCtx.currentTime, 2.8, 0.85);
+  }
+}
+</script>
+</body>
+</html>
