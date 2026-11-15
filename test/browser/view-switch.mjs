@@ -1,0 +1,17 @@
+import { launch, ok } from './lib.mjs';
+const { b, p, logs } = await launch();
+const S = () => p.evaluate(() => { const { S, store } = window.__ORBITAL; return { credits: Math.floor(store.get().credits), fc: S.fc && S.fc.state, v2: !!S.fview2d, kind: S.fview && S.fview.constructor.name, alt: S.fc ? Math.round(S.fc.flight.alt || 0) : null, canvases: document.querySelectorAll('#flightCanvas').length, label: document.querySelector('#bView') && document.querySelector('#bView').textContent }; });
+await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForFunction(() => document.getElementById('boot').classList.contains('hide'), null, { timeout: 60000 });
+await p.click('[data-home="launch"]'); await p.waitForTimeout(800);
+await p.click('#btnLaunchNow'); await p.evaluate(() => { window.__ORBITAL.S.fc.cd = 0.05; });
+await p.waitForFunction(() => window.__ORBITAL.S.fc && window.__ORBITAL.S.fc.state === 'flying', null, { timeout: 60000 });
+await p.waitForTimeout(1500);
+let s0 = await S(); console.log(s0);
+ok(s0.kind === 'FlightView', '3D by default');
+await p.click('#bView'); await p.waitForTimeout(1500); let s1 = await S(); console.log(s1);
+ok(s1.kind === 'FlightView2D' && s1.fc === 'flying' && s1.credits === s0.credits && s1.canvases === 1 && s1.label === 'Switch to 3D view', 'switched to 2D mid-flight, same flight, no charge');
+await p.screenshot({ path: '/tmp/orbital_v2d.png' });
+await p.click('#bView'); await p.waitForTimeout(1500); let s2 = await S(); console.log(s2);
+ok(s2.kind === 'FlightView' && s2.fc === 'flying' && s2.credits === s0.credits && s2.alt >= s1.alt, 'back to 3D, flight continued');
+await p.screenshot({ path: '/tmp/orbital_v3d.png' });
+console.log(logs.join('\n') || 'no console errors'); await b.close();

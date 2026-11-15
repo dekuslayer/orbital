@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live NASA Pages</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#ff9800">
+<div class="container">
+  <h1>Live NASA Pages</h1>
+  <p class="sub">Seven related live-data experiences. Each page identifies the exact NASA API product and labels offline samples; these pages are separate from the historical Jukebox record datasets.</p>
+  <canvas id="visualizer" hidden></canvas><div id="narrative-box" hidden></div><div id="status-msg" hidden></div>
+  <div class="grid" id="grid"></div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('hub');
+document.getElementById('grid').innerHTML = LIVE_PAGES.map(p => '<a class="card" style="--c:' + p.color + '" href="' + p.href + '"><b>' + p.label + '</b><span>Related Jukebox theme (separate dataset): ' + p.rec + ' · ' + p.desc + '</span></a>').join('');
+</script>
+</body>
+</html>

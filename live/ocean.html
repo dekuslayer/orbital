@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live Ocean & Climate</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#00e676;--btn:#009688;--btn-hover:#00695c">
+<div class="container">
+  <h1>Earth Information Jukebox</h1>
+  <p class="sub">Live Sonification of Coastal Air Temperature at Alexandria (NASA POWER, 2 m air temperature)</p>
+  <canvas id="visualizer"></canvas>
+  <div id="narrative-box" class="narrative-box" aria-live="polite">Connecting to the NASA POWER meteorological data API...</div>
+  <div class="btn-group">
+    <button onclick="sonifyOceanData(false)">Sonify Latest Temperature</button>
+    <button onclick="sonifyOceanData(true)">Sonify 7-Day Temperature Sequence</button>
+  </div>
+  <div id="status-msg" class="status">Connecting to the named NASA API…</div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('ocean'); strokeColor = '#00e676';
+
+let oceanTempValues = [22.5, 23.1, 24.0, 23.8, 24.5, 25.1, 24.9]; // sample values, used only if NASA is unreachable
+let oceanDataIsLive = false;
+
+async function fetchNASAPowerData() {
+  try {
+    const json = await getJSON(powerUrl('T2M', 29.91, 31.20, powerWindow()));
+    const temps = validValues(json.properties.parameter.T2M);
+    if (temps.length) {
+      oceanTempValues = temps; oceanDataIsLive = true;
+      setStatus('LIVE NASA POWER API: ' + temps.length + ' daily readings (latest ' + temps[temps.length - 1] + '°C)');
+      setNarrative('NASA POWER daily 2 m air-temperature values loaded for the Alexandria grid point. This is near-surface AIR temperature, not sea-surface temperature or MODIS chlorophyll.');
+    } else throw new Error('No valid daily T2M values in NASA POWER response');
+  } catch (e) { setStatus('OFFLINE FALLBACK MODE: sample values in use, NOT live NASA data.'); setNarrative('NASA POWER could not be reached or returned usable values. The displayed temperatures are samples, not live observations.'); } finally { setLiveControlsReady(true); }
+}
+fetchNASAPowerData();
+
+function sonifyOceanData(isSequence) {
+  initAudio();
+  const latest = oceanTempValues[oceanTempValues.length - 1] || 23.5, mappedFreq = Math.round(180 + latest * 12);
+  if (isSequence) {
+    strokeColor = '#69f0ae';
+    const text = oceanDataIsLive ? ('Sonifying ' + oceanTempValues.length + ' daily NASA POWER 2 m air-temperature readings for Alexandria, from ' + oceanTempValues[0] + ' to ' + latest + ' degrees Celsius.') : ('Sonifying ' + oceanTempValues.length + ' illustrative offline sample temperatures, from ' + oceanTempValues[0] + ' to ' + latest + ' degrees Celsius; these are not NASA observations.');
+    setNarrative(text); speakText(text);
+    let t = audioCtx.currentTime;
+    oceanTempValues.forEach(val => { const f = 200 + val * 14; [f, f * 1.25, f * 1.5].forEach(fr => note('sine', fr, t, 0.3, 0.25)); t += 0.38; });
+  } else {
+    strokeColor = '#00e676';
+    const text = (oceanDataIsLive ? 'Latest NASA POWER reading: ' : 'Illustrative offline sample: ') + latest + '°C, mapped to ' + mappedFreq + ' Hz. ' + (oceanDataIsLive ? 'This is 2 m air temperature at Alexandria, not ocean temperature.' : 'This is not a live NASA observation.');
+    setNarrative(text); speakText(text);
+    note('sine', mappedFreq, audioCtx.currentTime, 3.0, 0.65);
+  }
+}
+</script>
+</body>
+</html>

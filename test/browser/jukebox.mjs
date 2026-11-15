@@ -1,0 +1,12 @@
+import { launch, ok } from './lib.mjs';
+const { b, p, logs } = await launch(1100, 700);
+await p.click('[data-nav="juke"]'); await p.waitForTimeout(1500);
+await p.click('#jukeSide button.rec'); 
+await p.waitForFunction(() => window.__ORBITAL.S.juke && window.__ORBITAL.S.juke.state === 'loaded', null, { timeout: 90000 }).catch(()=>console.log('not loaded', 'state'));
+console.log('state', await p.evaluate(()=>window.__ORBITAL.S.juke.state));
+await p.selectOption('#dPitch','7'); await p.click('#dPlay');
+await p.waitForTimeout(8000);
+console.log('state', await p.evaluate(()=>window.__ORBITAL.S.juke.state));
+await p.screenshot({ path: '/tmp/orbital_juke3.png' });
+console.log('pitch', await p.evaluate(()=>window.__ORBITAL.S.sonifier.pitch)); ok(!logs.length, 'no console errors: ' + logs.join(' | '));
+await b.close();

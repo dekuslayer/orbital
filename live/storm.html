@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Information Jukebox - Live Storm Signals</title>
+<link rel="stylesheet" href="live.css">
+</head>
+<body style="--accent:#42a5f5;--btn:#1976d2;--btn-hover:#0d47a1">
+<div class="container">
+  <h1>Earth Information Jukebox</h1>
+  <p class="sub">Live Sonification of Severe Storms (NASA EONET)</p>
+  <canvas id="visualizer"></canvas>
+  <div id="narrative-box" class="narrative-box" aria-live="polite">Connecting to NASA Storm Telemetry...</div>
+  <div class="btn-group">
+    <button onclick="sonifyStormData(false)">Sonify Calm Atmospheric Baseline</button>
+    <button onclick="sonifyStormData(true)">Sonify Open Severe-Storm Events</button>
+  </div>
+  <div id="status-msg" class="status">Connecting to the named NASA API…</div>
+</div>
+<script src="common.js"></script>
+<script>
+mountNav('storm'); strokeColor = '#42a5f5';
+
+let activeStormsCount = 8, latestStormTitle = 'Illustrative offline sample', stormDataIsLive = false;
+
+async function fetchNASAStormData() {
+  try {
+    const data = await getJSON('https://eonet.gsfc.nasa.gov/api/v3/categories/severeStorms?status=open');
+    if (data && Array.isArray(data.events)) {
+      activeStormsCount = data.events.length; stormDataIsLive = true;
+      latestStormTitle = data.events.length ? ((data.events[0] && data.events[0].title) || 'Untitled EONET event') : 'No open severe-storm event returned';
+      setStatus('NASA EONET CONNECTED: ' + activeStormsCount + ' open severe-storm events | Latest: ' + latestStormTitle);
+      setNarrative('Loaded ' + activeStormsCount + ' open severe-storm event records from NASA EONET. This is an event count, not GPM rainfall or a measured storm-surge value.');
+    } else throw new Error('EONET response did not contain an events array');
+  } catch (e) { setStatus('OFFLINE FALLBACK MODE: sample values in use, NOT live NASA data.'); setNarrative('NASA EONET could not be reached. The displayed storm count is illustrative, not a live event count.'); } finally { setLiveControlsReady(true); }
+}
+fetchNASAStormData();
+
+function sonifyStormData(isSurge) {
+  initAudio();
+  const surgeFreq = 300 + activeStormsCount * 25;
+  if (isSurge) {
+    strokeColor = '#ffca28';
+    const text = stormDataIsLive ? ('Open severe-storm events: sonifying ' + activeStormsCount + ' NASA EONET event records. Latest event: ' + latestStormTitle + '.') : ('Illustrative offline sample: sonifying ' + activeStormsCount + ' sample storm events. These are not live NASA observations.');
+    setNarrative(text); speakText(text);
+    let t = audioCtx.currentTime;
+    for (let i = 0; i < Math.min(activeStormsCount, 15); i++) { note('sawtooth', surgeFreq + i * 40, t, 0.2, 0.65); t += 0.12; }
+  } else {
+    strokeColor = '#42a5f5';
+    const text = 'Calm baseline: a low 140 Hz reference tone (not a measurement).';
+    setNarrative(text); speakText(text);
+    note('sine', 140, audioCtx.currentTime, 3.0, 0.8);
+  }
+}
+</script>
+</body>
+</html>
